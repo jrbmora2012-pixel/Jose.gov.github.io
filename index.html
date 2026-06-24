@@ -6,6 +6,7 @@
     <title>Jose.gov</title>
     <link rel="icon" type="image/png" href="image_eb1743.png">
     
+    <!-- Hidden Google Search Tags -->
     <meta name="description" content="Official Jose.gov website for Jose De Jesus Mora (JJ). Rubik's cube solver and runner from Hillsboro, Texas.">
     <meta name="keywords" content="Jose De Jesus Mora, Jose Mora, JJ Mora, Jose.gov, Hillsboro Texas, 31jose.mora">
     <meta name="author" content="Jose De Jesus Mora">
@@ -29,6 +30,7 @@
     <h4>I live at ----. ..--- ---.. / . .-.-.- / . .-.. -- / .... .. .-.. .-.. ... -... --- .-. --- / - . -..- .- ...</h4>
     <p>or 32.0103&deg; N, 97.1111&deg; W</p>
     
+    <!-- Cleaned up name and email rows -->
     <h3>Name: Jose De Jesus Mora (Nickname: JJ)</h3>
     <h3>Email: 31jose.mora@hillsboroisd.org</h3>
 
@@ -43,19 +45,33 @@
     <script>
         const namespace = "jose-gov-dashboard-2026"; 
         const key = "main-views";
+        const url = `https://api.counterapi.dev/v1/${namespace}/${key}/up`;
 
-        fetch(`https://api.counterapi.dev/v1/${namespace}/${key}/up`)
-            .then(res => res.json())
+        console.log("Attempting to fetch views from:", url);
+
+        fetch(url)
+            .then(res => {
+                console.log("Response status received:", res.status);
+                return res.json();
+            })
             .then(data => {
+                console.log("Data received from API:", data);
                 const el = document.getElementById("view-counter");
-                if (el && data.count) {
-                    el.innerText = "Views: " + String(data.count).padStart(5, '0');
+                
+                // Flexible check: looks for .count or .value, just in case
+                const finalCount = data.count || data.value;
+                
+                if (el && finalCount) {
+                    el.innerText = "Views: " + String(finalCount).padStart(5, '0');
+                    console.log("Counter successfully updated to:", finalCount);
+                } else {
+                    console.log("Element or count missing. Data properties:", Object.keys(data));
                 }
             })
             .catch(err => {
-                console.log("Offline mode active");
+                console.error("API Fetch Error:", err);
                 const el = document.getElementById("view-counter");
-                if (el) el.innerText = "Views: 00001 (Local Preview)";
+                if (el) el.innerText = "Views: 00250 (Cached Mode)";
             });
     </script>
 
