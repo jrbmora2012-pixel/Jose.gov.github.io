@@ -6,7 +6,6 @@
     <title>Jose.gov</title>
     <link rel="icon" type="image/png" href="image_eb1743.png">
     
-
     <meta name="description" content="Official Jose.gov website for Jose De Jesus Mora (JJ). Rubik's cube solver and runner from Hillsboro, Texas.">
     <meta name="keywords" content="Jose De Jesus Mora, Jose Mora, JJ Mora, Jose.gov, Hillsboro Texas, 31jose.mora">
     <meta name="author" content="Jose De Jesus Mora">
@@ -49,8 +48,8 @@
             .then(res => res.json())
             .then(data => {
                 const el = document.getElementById("view-counter");
-                if (el && data.value) {
-                    el.innerText = "Views: " + String(data.value).padStart(5, '0');
+                if (el && data.count) {
+                    el.innerText = "Views: " + String(data.count).padStart(5, '0');
                 }
             })
             .catch(err => {
