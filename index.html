@@ -16,6 +16,43 @@
             background-color: #000000;
             color: #ffffff;
         }
+
+        #chat-box {
+            border: 1px solid #ffffff;
+            padding: 10px;
+            max-width: 500px;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        #chat-name,
+        #chat-text {
+            padding: 8px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            background: #111111;
+            color: #ffffff;
+            border: 1px solid #ffffff;
+        }
+
+        #chat-text {
+            width: 250px;
+        }
+
+        #chat-send {
+            padding: 8px 16px;
+            background: #15ff00;
+            color: #000000;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #random-result {
+            font-size: 48px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -33,8 +70,15 @@
     <h3>Name: Jose De Jesus Mora (Nickname: JJ)</h3>
     <h3>Email: 31jose.mora@hillsboroisd.org</h3>
 
-    <button><h3>Random button</h3></button>
-    <button><h3>Free 10000 free Robucks click here</h3></h3></button>
+    <button id="random-btn"><h3>Random button</h3></button>
+    <p id="random-result"></p>
+    <button><h3>Free 10000 free Robucks click here</h3></button>
+
+    <h2>Chat</h2>
+    <div id="chat-box"></div>
+    <input type="text" id="chat-name" placeholder="Your name">
+    <input type="text" id="chat-text" placeholder="Your message">
+    <button id="chat-send">Send</button>
 
     <div style="text-align: center; margin-top: 40px;">
         <span id="view-counter" style="padding: 4px 12px; border: 1px solid #ffffff; color: #15ff00; font-weight: bold;">
@@ -47,31 +91,63 @@
         const key = "main-views";
         const url = `https://api.counterapi.dev/v1/${namespace}/${key}/up`;
 
-        console.log("Attempting to fetch views from:", url);
-
         fetch(url)
-            .then(res => {
-                console.log("Response status received:", res.status);
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                console.log("Data received from API:", data);
                 const el = document.getElementById("view-counter");
-                
                 const finalCount = data.count || data.value;
-                
                 if (el && finalCount) {
                     el.innerText = "Views: " + String(finalCount).padStart(5, '0');
-                    console.log("Counter successfully updated to:", finalCount);
-                } else {
-                    console.log("Element or count missing. Data properties:", Object.keys(data));
                 }
             })
             .catch(err => {
-                console.error("API Fetch Error:", err);
                 const el = document.getElementById("view-counter");
                 if (el) el.innerText = "Views: 00250 (Cached Mode)";
             });
+
+        document.getElementById("random-btn").addEventListener("click", function() {
+            document.getElementById("random-result").textContent = "💯";
+        });
+
+        const chatBox = document.getElementById("chat-box");
+        const nameInput = document.getElementById("chat-name");
+        const textInput = document.getElementById("chat-text");
+        const sendBtn = document.getElementById("chat-send");
+
+        let messages = JSON.parse(localStorage.getItem("jose-chat") || "[]");
+
+        function showMessages() {
+            chatBox.innerHTML = "";
+            messages.forEach(msg => {
+                const div = document.createElement("div");
+                div.style.marginBottom = "8px";
+                div.innerHTML = `<strong style="color:#15ff00">${msg.name}:</strong> ${msg.text}`;
+                chatBox.appendChild(div);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const name = nameInput.value.trim();
+            const text = textInput.value.trim();
+
+            if (!name || !text) {
+                alert("Please enter your name and a message!");
+                return;
+            }
+
+            messages.push({ name, text });
+            localStorage.setItem("jose-chat", JSON.stringify(messages));
+            textInput.value = "";
+            showMessages();
+        }
+
+        sendBtn.addEventListener("click", sendMessage);
+        textInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        showMessages();
     </script>
 
 </body>
