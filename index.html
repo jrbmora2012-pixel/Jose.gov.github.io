@@ -15,19 +15,47 @@
         body {
             background-color: #000000;
             color: #ffffff;
+            margin: 0;
+            overflow-x: hidden;
         }
 
         #chat-box {
             border: 1px solid #ffffff;
             padding: 10px;
-            max-width: 500px;
-            height: 200px;
+            max-width: 550px;
+            height: 220px;
             overflow-y: auto;
             margin-bottom: 10px;
         }
 
-        #chat-name,
-        #chat-text {
+        .chat-msg {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .chat-msg.banned-msg {
+            color: #ff4444;
+            font-style: italic;
+        }
+
+        .chat-msg.owner-msg {
+            color: #ffd700;
+            font-weight: bold;
+            text-shadow: 0 0 6px #ffd700;
+        }
+
+        .report-btn {
+            padding: 2px 8px;
+            font-size: 11px;
+            background: #ff0000;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        #chat-name, #chat-text, #chat-password {
             padding: 8px;
             margin-right: 5px;
             margin-bottom: 5px;
@@ -36,22 +64,52 @@
             border: 1px solid #ffffff;
         }
 
-        #chat-text {
-            width: 250px;
-        }
+        #chat-text { width: 220px; }
+        #chat-password { width: 90px; }
 
-        #chat-send {
+        #chat-send, #random-btn, #enter-chat-btn {
             padding: 8px 16px;
             background: #15ff00;
             color: #000000;
             border: none;
             cursor: pointer;
             font-weight: bold;
+            margin-right: 5px;
+            margin-bottom: 5px;
         }
 
-        #random-result {
+        #chat-warning {
+            background: #ff0000;
+            color: #ffff00;
+            border: 3px solid #ffff00;
+            padding: 15px;
+            max-width: 550px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        #chat-status {
+            color: #15ff00;
+            max-width: 550px;
+            margin-bottom: 8px;
+        }
+
+        #chat-area { display: none; }
+
+        .falling-100 {
+            position: fixed;
+            top: -60px;
             font-size: 48px;
-            margin-top: 10px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: fall-down 2.5s ease-in forwards;
+        }
+
+        @keyframes fall-down {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
         }
     </style>
 </head>
@@ -70,15 +128,29 @@
     <h3>Name: Jose De Jesus Mora (Nickname: JJ)</h3>
     <h3>Email: 31jose.mora@hillsboroisd.org</h3>
 
-    <button id="random-btn"><h3>Random button</h3></button>
-    <p id="random-result"></p>
-    <button><h3>Free 10000 free Robucks click here</h3></button>
+    <button id="random-btn" type="button">Random button</button>
+    <button type="button">Free 10000 free Robucks click here</button>
 
-    <h2>Chat</h2>
-    <div id="chat-box"></div>
-    <input type="text" id="chat-name" placeholder="Your name">
-    <input type="text" id="chat-text" placeholder="Your message">
-    <button id="chat-send">Send</button>
+    <h2 id="chat-section">Chat</h2>
+    <button id="enter-chat-btn" type="button">Go to Chat</button>
+
+    <div id="chat-warning">
+        ⚠️ WARNING ⚠️<br>
+        Pick your OWN 4-digit password (first time only).<br>
+        Names and passwords cannot be reused by others.<br>
+        Swearing = instant BAN. Bans are remembered forever.<br>
+        Only Jose Mora can use owner names!
+    </div>
+
+    <div id="chat-area">
+        <div id="chat-status"></div>
+        <div id="chat-box"></div>
+        <input type="text" id="chat-name" placeholder="Your name">
+        <input type="text" id="chat-text" placeholder="Your message">
+        <input type="password" id="chat-password" placeholder="4-digit code" maxlength="4" inputmode="numeric">
+        <button id="chat-send" type="button">Send</button>
+        <p><small>Jose Mora = golden text. Everyone else = green. Swear = ban.</small></p>
+    </div>
 
     <div style="text-align: center; margin-top: 40px;">
         <span id="view-counter" style="padding: 4px 12px; border: 1px solid #ffffff; color: #15ff00; font-weight: bold;">
@@ -87,67 +159,351 @@
     </div>
 
     <script>
-        const namespace = "jose-gov-dashboard-2026"; 
-        const key = "main-views";
-        const url = `https://api.counterapi.dev/v1/${namespace}/${key}/up`;
+        const BAN_MESSAGE = "This user was banned for breaking swearing rules.";
+        const OWNER_PASSWORD = "3513";
+        const OWNER_NAMES = ["jose mora", "jose de jesus mora", "jj", "jose.gov"];
 
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
+        const badWords = [
+            "stupid", "idiot", "dumb", "hate", "kill", "die", "ugly", "loser",
+            "suck", "sucks", "fart", "butt", "heck", "damn", "crap", "shut up",
+            "shutup", "moron", "jerk", "trash", "noob", "lame", "worst", "stfu",
+            "wtf", "hell", "fool", "dumbass", "sucky", "retard", "retarded",
+            "gay", "lesbo", "fag", "faggot", "nazi", "racist", "sex", "porn",
+            "boob", "boobs", "penis", "vagina", "balls", "ass", "arse", "a$$",
+            "bastard", "bitch", "biatch", "cock", "crap", "cunt", "dick",
+            "douche", "fuck", "fuk", "fck", "shit", "sh1t", "piss", "pissed",
+            "slut", "whore", "hoe", "suck my", "screw you", "go die", "kys",
+            "kill yourself", "homo", "fatty", "fatso", "pig", "cow", "ugly af",
+            "loser af", "stfu", "gtfo", "pos", "piece of", "satan", "devil"
+        ];
+
+        let messages = [];
+        let bannedUsers = [];
+        let registeredUsers = [];
+
+        function loadAllData() {
+            try { messages = JSON.parse(localStorage.getItem("jose-chat") || "[]"); } catch (e) { messages = []; }
+            try { bannedUsers = JSON.parse(localStorage.getItem("jose-chat-banned") || "[]"); } catch (e) { bannedUsers = []; }
+            try { registeredUsers = JSON.parse(localStorage.getItem("jose-chat-users") || "[]"); } catch (e) { registeredUsers = []; }
+        }
+
+        function saveAllData() {
+            localStorage.setItem("jose-chat", JSON.stringify(messages));
+            localStorage.setItem("jose-chat-banned", JSON.stringify(bannedUsers));
+            localStorage.setItem("jose-chat-users", JSON.stringify(registeredUsers));
+        }
+
+        loadAllData();
+
+        fetch("https://api.counterapi.dev/v1/jose-gov-dashboard-2026/main-views/up")
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
                 const el = document.getElementById("view-counter");
-                const finalCount = data.count || data.value;
-                if (el && finalCount) {
-                    el.innerText = "Views: " + String(finalCount).padStart(5, '0');
-                }
+                const count = data.count || data.value;
+                if (el && count) el.innerText = "Views: " + String(count).padStart(5, "0");
             })
-            .catch(err => {
+            .catch(function() {
                 const el = document.getElementById("view-counter");
                 if (el) el.innerText = "Views: 00250 (Cached Mode)";
             });
 
-        document.getElementById("random-btn").addEventListener("click", function() {
-            document.getElementById("random-result").textContent = "💯";
-        });
+        function spawnFalling100() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(function() {
+                    const emoji = document.createElement("div");
+                    emoji.className = "falling-100";
+                    emoji.textContent = "💯";
+                    emoji.style.left = Math.random() * 90 + "vw";
+                    emoji.style.fontSize = (30 + Math.random() * 40) + "px";
+                    document.body.appendChild(emoji);
+                    setTimeout(function() { emoji.remove(); }, 2500);
+                }, i * 150);
+            }
+        }
+        document.getElementById("random-btn").onclick = spawnFalling100;
 
-        const chatBox = document.getElementById("chat-box");
-        const nameInput = document.getElementById("chat-name");
-        const textInput = document.getElementById("chat-text");
-        const sendBtn = document.getElementById("chat-send");
-
-        let messages = JSON.parse(localStorage.getItem("jose-chat") || "[]");
-
-        function showMessages() {
-            chatBox.innerHTML = "";
-            messages.forEach(msg => {
-                const div = document.createElement("div");
-                div.style.marginBottom = "8px";
-                div.innerHTML = `<strong style="color:#15ff00">${msg.name}:</strong> ${msg.text}`;
-                chatBox.appendChild(div);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
+        function isOwnerName(name) {
+            const lower = name.toLowerCase().trim();
+            for (let i = 0; i < OWNER_NAMES.length; i++) {
+                if (lower === OWNER_NAMES[i] || lower.includes(OWNER_NAMES[i])) return true;
+            }
+            return false;
         }
 
-        function sendMessage() {
-            const name = nameInput.value.trim();
-            const text = textInput.value.trim();
+        function isOwnerLogin(name, password) {
+            return isOwnerName(name) && password === OWNER_PASSWORD;
+        }
 
-            if (!name || !text) {
-                alert("Please enter your name and a message!");
+        function normalizeForFilter(text) {
+            return text.toLowerCase()
+                .replace(/[@4]/g, "a").replace(/[38]/g, "e").replace(/[1!|]/g, "i")
+                .replace(/[0]/g, "o").replace(/[$5]/g, "s").replace(/[7+]/g, "t")
+                .replace(/\s+/g, "").replace(/[^a-z]/g, "");
+        }
+
+        function deepScan(text) {
+            const lower = text.toLowerCase();
+            const normal = normalizeForFilter(text);
+            const spaced = lower.replace(/\s+/g, "");
+            for (let i = 0; i < badWords.length; i++) {
+                const word = badWords[i];
+                const clean = word.replace(/[^a-z]/g, "");
+                if (lower.includes(word)) return word;
+                if (clean && normal.includes(clean)) return word;
+                if (clean && spaced.includes(clean)) return word;
+            }
+            return null;
+        }
+
+        function isBanned(name) {
+            return bannedUsers.indexOf(name.toLowerCase().trim()) !== -1;
+        }
+
+        function getUserByName(name) {
+            const lower = name.toLowerCase().trim();
+            for (let i = 0; i < registeredUsers.length; i++) {
+                if (registeredUsers[i].name.toLowerCase() === lower) return registeredUsers[i];
+            }
+            return null;
+        }
+
+        function getUserByPassword(password) {
+            for (let i = 0; i < registeredUsers.length; i++) {
+                if (registeredUsers[i].password === password) return registeredUsers[i];
+            }
+            return null;
+        }
+
+        function checkLogin(name, password) {
+            if (isBanned(name)) {
+                return { ok: false, error: "You are BANNED from chat." };
+            }
+
+            if (isOwnerName(name)) {
+                if (password === OWNER_PASSWORD) {
+                    return { ok: true, message: "👑 Welcome, Owner Jose Mora!", isOwner: true };
+                }
+                return { ok: false, error: "❌ That is Jose Mora's name! Wrong owner password." };
+            }
+
+            const existingByName = getUserByName(name);
+            const existingByPass = getUserByPassword(password);
+
+            if (existingByName) {
+                if (existingByName.password === password) {
+                    return { ok: true, message: "Welcome back, " + name + "!" };
+                }
+                return { ok: false, error: "❌ Name already used! Wrong password for '" + name + "'." };
+            }
+
+            if (existingByPass) {
+                return { ok: false, error: "❌ Password already used by '" + existingByPass.name + "'. Pick a different code." };
+            }
+
+            registeredUsers.push({ name: name, password: password, created: Date.now() });
+            saveAllData();
+            return { ok: true, message: "✅ New account created!", newUser: true };
+        }
+
+        function banUser(name) {
+            if (isOwnerName(name)) return;
+
+            const lower = name.toLowerCase().trim();
+            if (bannedUsers.indexOf(lower) === -1) bannedUsers.push(lower);
+
+            for (let i = 0; i < messages.length; i++) {
+                if (messages[i].name.toLowerCase().trim() === lower) {
+                    messages[i].text = BAN_MESSAGE;
+                    messages[i].banned = true;
+                    messages[i].isOwner = false;
+                }
+            }
+            saveAllData();
+        }
+
+        function saveMyDevice(name, password) {
+            localStorage.setItem("jose-chat-saved-name", name);
+            localStorage.setItem("jose-chat-saved-password", password);
+        }
+
+        function loadMyDevice() {
+            const n = localStorage.getItem("jose-chat-saved-name");
+            const p = localStorage.getItem("jose-chat-saved-password");
+            if (n) document.getElementById("chat-name").value = n;
+            if (p) document.getElementById("chat-password").value = p;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const status = document.getElementById("chat-status");
+            const name = document.getElementById("chat-name").value.trim();
+            const pass = document.getElementById("chat-password").value.trim();
+
+            status.style.color = "#15ff00";
+
+            if (!name && !pass) {
+                status.textContent = "Users: " + registeredUsers.length + " | Banned: " + bannedUsers.length;
                 return;
             }
 
-            messages.push({ name, text });
-            localStorage.setItem("jose-chat", JSON.stringify(messages));
-            textInput.value = "";
+            if (name && isBanned(name)) {
+                status.textContent = "⛔ " + name + " is BANNED.";
+                status.style.color = "#ff4444";
+                return;
+            }
+
+            if (isOwnerLogin(name, pass)) {
+                status.textContent = "👑 Owner Jose Mora logged in — golden text enabled!";
+                status.style.color = "#ffd700";
+                return;
+            }
+
+            const byName = name ? getUserByName(name) : null;
+            const byPass = pass.length === 4 ? getUserByPassword(pass) : null;
+
+            if (byName && pass && byName.password === pass) {
+                status.textContent = "✅ Logged in as " + name;
+            } else if (byName && pass && byName.password !== pass) {
+                status.textContent = "❌ Name already used — wrong password!";
+                status.style.color = "#ff4444";
+            } else if (byPass && name && byPass.name.toLowerCase() !== name.toLowerCase()) {
+                status.textContent = "❌ Password already used by " + byPass.name;
+                status.style.color = "#ff4444";
+            } else if (name && isOwnerName(name)) {
+                status.textContent = "👑 Owner name — enter owner password";
+                status.style.color = "#ffd700";
+            } else if (name && !byName && pass.length === 4 && !byPass) {
+                status.textContent = "✅ New name — password available!";
+            } else {
+                status.textContent = "Users: " + registeredUsers.length + " | Banned: " + bannedUsers.length;
+            }
+        }
+
+        const chatBox = document.getElementById("chat-box");
+
+        function showMessages() {
+            chatBox.innerHTML = "";
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i];
+                const div = document.createElement("div");
+                const owner = msg.isOwner || isOwnerName(msg.name);
+
+                if (msg.banned) div.className = "chat-msg banned-msg";
+                else if (owner) div.className = "chat-msg owner-msg";
+                else div.className = "chat-msg";
+
+                const nameSpan = document.createElement("strong");
+                if (msg.banned) nameSpan.style.color = "#ff4444";
+                else if (owner) nameSpan.style.color = "#ffd700";
+                else nameSpan.style.color = "#15ff00";
+
+                nameSpan.textContent = (owner && !msg.banned ? "👑 " : "") + msg.name + ": ";
+
+                const textSpan = document.createElement("span");
+                textSpan.textContent = msg.text;
+                if (owner && !msg.banned) textSpan.style.color = "#ffd700";
+
+                div.appendChild(nameSpan);
+                div.appendChild(textSpan);
+
+                if (!msg.banned && !owner) {
+                    const reportBtn = document.createElement("button");
+                    reportBtn.className = "report-btn";
+                    reportBtn.textContent = "Report";
+                    reportBtn.onclick = function() { reportMessage(i); };
+                    div.appendChild(reportBtn);
+                }
+
+                chatBox.appendChild(div);
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function reportMessage(index) {
+            const msg = messages[index];
+            if (!msg || msg.banned || msg.isOwner || isOwnerName(msg.name)) return;
+
+            if (deepScan(msg.name) || deepScan(msg.text)) {
+                banUser(msg.name);
+                showMessages();
+                updateStatus();
+                alert("🤖 Bad words found. " + msg.name + " is BANNED!");
+            } else {
+                alert("Bot scanned again — message looks clean.");
+            }
+        }
+
+        function sendMessage() {
+            const name = document.getElementById("chat-name").value.trim();
+            const text = document.getElementById("chat-text").value.trim();
+            const password = document.getElementById("chat-password").value.trim();
+
+            if (!name || !text) {
+                alert("Enter your name and message!");
+                return;
+            }
+
+            if (!/^\d{4}$/.test(password)) {
+                alert("Password must be exactly 4 digits!");
+                return;
+            }
+
+            const login = checkLogin(name, password);
+            if (!login.ok) {
+                alert(login.error);
+                updateStatus();
+                return;
+            }
+
+            if (!login.isOwner && (deepScan(name) || deepScan(text))) {
+                banUser(name);
+                showMessages();
+                updateStatus();
+                alert("🤖 Swearing detected! BANNED forever.");
+                return;
+            }
+
+            messages.push({
+                name: name,
+                text: text,
+                time: Date.now(),
+                banned: false,
+                isOwner: login.isOwner || false
+            });
+
+            saveAllData();
+            saveMyDevice(name, password);
+            document.getElementById("chat-text").value = "";
+            showMessages();
+            updateStatus();
+
+            if (login.newUser || login.isOwner) alert(login.message);
+        }
+
+        function openChat() {
+            document.getElementById("chat-warning").style.display = "block";
+            document.getElementById("chat-area").style.display = "block";
+            document.getElementById("enter-chat-btn").style.display = "none";
+
+            if (!localStorage.getItem("jose-chat-warned")) {
+                alert("⚠️ WARNING ⚠️\n\n• 4-digit passwords\n• Jose Mora = owner (golden text)\n• Swearing = permanent BAN\n• Names/passwords cannot be reused");
+                localStorage.setItem("jose-chat-warned", "true");
+            }
+
+            loadMyDevice();
             showMessages();
         }
 
-        sendBtn.addEventListener("click", sendMessage);
-        textInput.addEventListener("keydown", (e) => {
+        document.getElementById("enter-chat-btn").onclick = openChat;
+        document.getElementById("chat-send").onclick = sendMessage;
+        document.getElementById("chat-text").onkeydown = function(e) {
             if (e.key === "Enter") sendMessage();
-        });
-
-        showMessages();
+        };
+        document.getElementById("chat-password").oninput = function() {
+            this.value = this.value.replace(/\D/g, "").slice(0, 4);
+            updateStatus();
+        };
+        document.getElementById("chat-name").oninput = updateStatus;
     </script>
 
 </body>
